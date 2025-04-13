@@ -3,12 +3,27 @@
  */
 package org.example;
 
+import org.rocksdb.*;
+
 public class App {
-    public String getGreeting() {
-        return "Hello World!";
-    }
 
     public static void main(String[] args) {
-        System.out.println(new App().getGreeting());
+        final String db_path = "example.db";
+        final String db_path_not_found = db_path + "_not_found";
+
+        System.out.println("RocksDBSample");
+        try (final Options options = new Options();
+             final Filter bloomFilter = new BloomFilter(10);
+             final ReadOptions readOptions = new ReadOptions()
+                 .setFillCache(false);
+             final Statistics stats = new Statistics();
+             final RateLimiter rateLimiter = new RateLimiter(10000000,10000, 10)) {
+
+          try (final RocksDB db = RocksDB.open(options, db_path_not_found)) {
+            assert (false);
+          } catch (final RocksDBException e) {
+            System.out.format("Caught the expected exception -- %s\n", e);
+          }
+        }
     }
 }
