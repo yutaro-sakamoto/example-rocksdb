@@ -9,7 +9,6 @@ public class App {
 
     public static void main(String[] args) {
         final String db_path = "example.db";
-        final String db_path_not_found = db_path + "_not_found";
 
         System.out.println("RocksDBSample");
         try (final Options options = new Options();
@@ -19,11 +18,34 @@ public class App {
              final Statistics stats = new Statistics();
              final RateLimiter rateLimiter = new RateLimiter(10000000,10000, 10)) {
 
-          try (final RocksDB db = RocksDB.open(options, db_path_not_found)) {
-            assert (false);
+          options.setCreateIfMissing(true);
+
+          try (final RocksDB db = RocksDB.open(options, db_path)) {
+            db.put("hey1".getBytes(), "there1".getBytes());
+            db.put("hey2".getBytes(), "there2".getBytes());
+            db.put("hey3".getBytes(), "there3".getBytes());
+            try(final RocksIterator iterator = db.newIterator()) {
+              System.out.println("<seekToFirst>");
+              iterator.seekToFirst();
+              printIteratorData(iterator);
+              System.out.println("<Next>");
+              iterator.next();
+              printIteratorData(iterator);
+              System.out.println("<Prev>");
+              iterator.prev();
+              printIteratorData(iterator);
+              System.out.println("<For loop>");
+              for(iterator.seekToFirst(); iterator.isValid(); iterator.next()) {
+                printIteratorData(iterator);
+              }
+            }
           } catch (final RocksDBException e) {
             System.out.format("Caught the expected exception -- %s\n", e);
           }
         }
+    }
+
+    private static void printIteratorData(RocksIterator iterator) {
+        System.out.format("Key: %s, Value: %s\n", new String(iterator.key()), new String(iterator.value()));
     }
 }
