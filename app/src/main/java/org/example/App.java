@@ -4,6 +4,8 @@
 package org.example;
 
 import org.rocksdb.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class App {
 
@@ -11,6 +13,32 @@ public class App {
         final String db_path = "example.db";
 
         System.out.println("RocksDBSample");
+
+        try(final Options options = new Options().setCreateIfMissing(true);
+            final RocksDB db = RocksDB.open(options, db_path)) {
+
+          assert(db != null);
+
+          // create column family
+          try(final ColumnFamilyHandle columnFamilyHandle = db.createColumnFamily(
+              new ColumnFamilyDescriptor("new_cf".getBytes(),
+              new ColumnFamilyOptions()))) {
+            assert (columnFamilyHandle != null);
+          }
+        }
+
+        // open DB with two column families
+        final List<ColumnFamilyDescriptor> columnFamilyDescriptors =
+            new ArrayList<>();
+        // have to open default column family
+        columnFamilyDescriptors.add(new ColumnFamilyDescriptor(
+            RocksDB.DEFAULT_COLUMN_FAMILY, new ColumnFamilyOptions()));
+        // open the new one, too
+        columnFamilyDescriptors.add(new ColumnFamilyDescriptor(
+            "new_cf".getBytes(), new ColumnFamilyOptions()));
+
+        final List<ColumnFamilyHandle> columnFamilyHandlers = new ArrayList<>();
+
         try (final Options options = new Options();
              final Filter bloomFilter = new BloomFilter(10);
              final ReadOptions readOptions = new ReadOptions()
@@ -20,25 +48,26 @@ public class App {
 
           options.setCreateIfMissing(true);
 
-          try (final RocksDB db = RocksDB.open(options, db_path)) {
-            db.put("hey1".getBytes(), "there1".getBytes());
-            db.put("hey2".getBytes(), "there2".getBytes());
-            db.put("hey3".getBytes(), "there3".getBytes());
-            try(final RocksIterator iterator = db.newIterator()) {
-              System.out.println("<seekToFirst>");
-              iterator.seekToFirst();
-              printIteratorData(iterator);
-              System.out.println("<Next>");
-              iterator.next();
-              printIteratorData(iterator);
-              System.out.println("<Prev>");
-              iterator.prev();
-              printIteratorData(iterator);
-              System.out.println("<For loop>");
-              for(iterator.seekToFirst(); iterator.isValid(); iterator.next()) {
-                printIteratorData(iterator);
-              }
-            }
+          try (final RocksDB db = RocksDB.open(options, db_path, columnFamilyDescriptors, columnFamilyHandlers)) {
+
+            db.put(columnFamilyHandlers.get(1), "hey1".getBytes(), "there1".getBytes());
+            db.put(columnFamilyHandlers.get(1), "hey2".getBytes(), "there2".getBytes());
+            db.put(columnFamilyHandlers.get(1), "hey3".getBytes(), "there3".getBytes());
+            //try(final RocksIterator iterator = db.newIterator()) {
+            //  System.out.println("<seekToFirst>");
+            //  iterator.seekToFirst();
+            //  printIteratorData(iterator);
+            //  System.out.println("<Next>");
+            //  iterator.next();
+            //  printIteratorData(iterator);
+            //  System.out.println("<Prev>");
+            //  iterator.prev();
+            //  printIteratorData(iterator);
+            //  System.out.println("<For loop>");
+            //  for(iterator.seekToFirst(); iterator.isValid(); iterator.next()) {
+            //    printIteratorData(iterator);
+            //  }
+            //}
           } catch (final RocksDBException e) {
             System.out.format("Caught the expected exception -- %s\n", e);
           }
