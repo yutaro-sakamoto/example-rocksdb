@@ -9,7 +9,7 @@ import java.util.List;
 
 public class App {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws RocksDBException {
         final String db_path = "example.db";
 
         System.out.println("RocksDBSample");
@@ -37,9 +37,9 @@ public class App {
         columnFamilyDescriptors.add(new ColumnFamilyDescriptor(
             "new_cf".getBytes(), new ColumnFamilyOptions()));
 
-        final List<ColumnFamilyHandle> columnFamilyHandlers = new ArrayList<>();
+        final List<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>();
 
-        try (final Options options = new Options();
+        try (final DBOptions options = new DBOptions();
              final Filter bloomFilter = new BloomFilter(10);
              final ReadOptions readOptions = new ReadOptions()
                  .setFillCache(false);
@@ -48,11 +48,11 @@ public class App {
 
           options.setCreateIfMissing(true);
 
-          try (final RocksDB db = RocksDB.open(options, db_path, columnFamilyDescriptors, columnFamilyHandlers)) {
+          try (final RocksDB db = RocksDB.open(options, db_path, columnFamilyDescriptors, columnFamilyHandles)) {
 
-            db.put(columnFamilyHandlers.get(1), "hey1".getBytes(), "there1".getBytes());
-            db.put(columnFamilyHandlers.get(1), "hey2".getBytes(), "there2".getBytes());
-            db.put(columnFamilyHandlers.get(1), "hey3".getBytes(), "there3".getBytes());
+            db.put(columnFamilyHandles.get(1), "hey1".getBytes(), "there1".getBytes());
+            db.put(columnFamilyHandles.get(1), "hey2".getBytes(), "there2".getBytes());
+            db.put(columnFamilyHandles.get(1), "hey3".getBytes(), "there3".getBytes());
             //try(final RocksIterator iterator = db.newIterator()) {
             //  System.out.println("<seekToFirst>");
             //  iterator.seekToFirst();
