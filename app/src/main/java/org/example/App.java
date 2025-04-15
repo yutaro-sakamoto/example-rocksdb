@@ -14,29 +14,26 @@ public class App {
 
         System.out.println("RocksDBSample");
 
-        try(final Options options = new Options().setCreateIfMissing(true);
-            final RocksDB db = RocksDB.open(options, db_path)) {
+        final List<byte[]> existingColumnFamilies = RocksDB.listColumnFamilies(new Options(), db_path);
+        boolean newCfExists = existingColumnFamilies.stream().anyMatch(cf -> new String(cf).equals("new_cf"));
+        if (!newCfExists) {
+          try (final Options options = new Options().setCreateIfMissing(true);
+               final RocksDB db = RocksDB.open(options, db_path)) {
 
-          assert(db != null);
+            assert (db != null);
 
-          // create column family
-          try(final ColumnFamilyHandle columnFamilyHandle = db.createColumnFamily(
-              new ColumnFamilyDescriptor("new_cf".getBytes(),
-              new ColumnFamilyOptions()))) {
-            assert (columnFamilyHandle != null);
+            // Create "new_cf" column family if it doesn't exist
+            try (final ColumnFamilyHandle columnFamilyHandle = db.createColumnFamily(
+                    new ColumnFamilyDescriptor("new_cf".getBytes(), new ColumnFamilyOptions()))) {
+                assert (columnFamilyHandle != null);
+            }
           }
         }
 
-        // open DB with two column families
-        final List<ColumnFamilyDescriptor> columnFamilyDescriptors =
-            new ArrayList<>();
-        // have to open default column family
-        columnFamilyDescriptors.add(new ColumnFamilyDescriptor(
-            RocksDB.DEFAULT_COLUMN_FAMILY, new ColumnFamilyOptions()));
-        // open the new one, too
-        columnFamilyDescriptors.add(new ColumnFamilyDescriptor(
-            "new_cf".getBytes(), new ColumnFamilyOptions()));
-
+        // Open DB with all column families
+        final List<ColumnFamilyDescriptor> columnFamilyDescriptors = new ArrayList<>();
+        columnFamilyDescriptors.add(new ColumnFamilyDescriptor(RocksDB.DEFAULT_COLUMN_FAMILY, new ColumnFamilyOptions()));
+        columnFamilyDescriptors.add(new ColumnFamilyDescriptor("new_cf".getBytes(), new ColumnFamilyOptions()));
         final List<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>();
 
         try (final DBOptions options = new DBOptions();
@@ -44,33 +41,50 @@ public class App {
              final ReadOptions readOptions = new ReadOptions()
                  .setFillCache(false);
              final Statistics stats = new Statistics();
-             final RateLimiter rateLimiter = new RateLimiter(10000000,10000, 10)) {
-
-          options.setCreateIfMissing(true);
-
-          try (final RocksDB db = RocksDB.open(options, db_path, columnFamilyDescriptors, columnFamilyHandles)) {
+             final RateLimiter rateLimiter = new RateLimiter(10000000,10000, 10);
+             final RocksDB db = RocksDB.open(options, db_path, columnFamilyDescriptors, columnFamilyHandles)) {
 
             db.put(columnFamilyHandles.get(1), "hey1".getBytes(), "there1".getBytes());
             db.put(columnFamilyHandles.get(1), "hey2".getBytes(), "there2".getBytes());
             db.put(columnFamilyHandles.get(1), "hey3".getBytes(), "there3".getBytes());
-            //try(final RocksIterator iterator = db.newIterator()) {
-            //  System.out.println("<seekToFirst>");
-            //  iterator.seekToFirst();
-            //  printIteratorData(iterator);
-            //  System.out.println("<Next>");
-            //  iterator.next();
-            //  printIteratorData(iterator);
-            //  System.out.println("<Prev>");
-            //  iterator.prev();
-            //  printIteratorData(iterator);
-            //  System.out.println("<For loop>");
-            //  for(iterator.seekToFirst(); iterator.isValid(); iterator.next()) {
-            //    printIteratorData(iterator);
-            //  }
-            //}
-          } catch (final RocksDBException e) {
+
+            try (final RocksIterator iterator = db.newIterator(columnFamilyHandles.get(1))) {
+                System.out.println("<seekToFirst>");
+                iterator.seekToFirst();
+                printIteratorData(iterator);
+                System.out.println("<Next>");
+                iterator.next();
+                printIteratorData(iterator);
+                System.out.println("<Prev>");
+                iterator.prev();
+                printIteratorData(iterator);
+                System.out.println("<For loop>");
+                for (iterator.seekToFirst(); iterator.isValid(); iterator.next()) {
+                    printIteratorData(iterator);
+                }
+            }
+
+            db.put(columnFamilyHandles.get(0), "hello1".getBytes(), "world1".getBytes());
+            db.put(columnFamilyHandles.get(0), "hello2".getBytes(), "world2".getBytes());
+            db.put(columnFamilyHandles.get(0), "hello3".getBytes(), "world3".getBytes());
+
+            try (final RocksIterator iterator = db.newIterator(columnFamilyHandles.get(0))) {
+                System.out.println("<seekToFirst>");
+                iterator.seekToFirst();
+                printIteratorData(iterator);
+                System.out.println("<Next>");
+                iterator.next();
+                printIteratorData(iterator);
+                System.out.println("<Prev>");
+                iterator.prev();
+                printIteratorData(iterator);
+                System.out.println("<For loop>");
+                for (iterator.seekToFirst(); iterator.isValid(); iterator.next()) {
+                    printIteratorData(iterator);
+                }
+            }
+        } catch (final RocksDBException e) {
             System.out.format("Caught the expected exception -- %s\n", e);
-          }
         }
     }
 
